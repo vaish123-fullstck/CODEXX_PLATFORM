@@ -1,0 +1,88 @@
+/* Reset styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Navbar Styling */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%; /* Adjusted width */
+  max-width: 1100px; /* Prevents excessive width */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.3); /* Darker transparency */
+ /* Transparent effect */
+  backdrop-filter: blur(10px); /* Blur effect */
+  color: white;
+  font-size: 18px;
+  border-radius: 10px; /* Optional rounded edges */
+}
+
+/* Logo */
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Navigation Links */
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+
+.nav-links li a {
+  color: white;
+  text-decoration: none;
+}
+
+/* Auth Buttons */
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  margin-right: 20px; /* Moves buttons slightly left */
+}
+
+/* Buttons */
+.login-btn,
+.signup-btn {
+  padding: 8px 14px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Login Button */
+.login-btn {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  border-radius: 5px;
+}
+
+/* Signup Button */
+.signup-btn {
+  background: white;
+  color: black;
+  border-radius: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .navbar {
+      width: 90%; /* Adjusted for smaller screens */
+  }
+  .nav-links {
+      gap: 10px;
+  }
+  .auth-buttons {
+      margin-right: 10px; /* Adjust spacing */
+  }
+}
