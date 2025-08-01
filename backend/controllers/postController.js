@@ -1,7 +1,6 @@
 const Post = require('../models/Post');
-const diff = require('diff');
-
 const FileContent = require('../models/FileContent');
+const diff = require('diff');
 
 // CREATE POST (METADATA ONLY)
 exports.createPost = async (req, res) => {
@@ -10,7 +9,7 @@ exports.createPost = async (req, res) => {
         const initialVersion = {
             commitMessage: 'Initial commit',
             versionNumber: 0,
-            files: [] // Starts empty
+            files: []
         };
         const newPost = new Post({
             title,
@@ -38,20 +37,17 @@ exports.addFileToPost = async (req, res) => {
         
         const fileContent = req.file.buffer.toString('utf-8');
 
-        // 1. Create a new document to store the file's content
         const newFileContent = new FileContent({
             postId: postId,
             content: fileContent
         });
         const savedFileContent = await newFileContent.save();
 
-        // 2. Get the latest version from the post
         const latestVersion = post.versions[post.versions.length - 1];
         
-        // 3. Add a reference (the ID) to the file content in the post's file array
         latestVersion.files.push({
             path: path,
-            fileId: savedFileContent._id // <-- Store the reference ID, not the content
+            fileId: savedFileContent._id
         });
 
         await post.save();
@@ -74,10 +70,17 @@ exports.getAllPosts = async (req, res) => {
     }
 };
 
-// GET A SINGLE POST BY ID
+// GET A SINGLE POST BY ID (WITH FILE CONTENT POPULATED)
 exports.getPostById = async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id).populate('author', 'username');
+        const post = await Post.findById(req.params.id)
+            .populate('author', 'username')
+            .populate('comments.author', 'username') // Also populate comment authors
+            .populate({
+                path: 'versions.files.fileId',
+                model: 'FileContent'
+            });
+
         if (!post) {
             return res.status(404).json({ error: 'Post not found' });
         }
@@ -88,90 +91,74 @@ exports.getPostById = async (req, res) => {
     }
 };
 
-// HELPER FUNCTION TO RECONSTRUCT FILE STATE FOR A SPECIFIC VERSION
-const reconstructFileState = (versions, targetVersionNumber) => {
-    if (!versions || versions.length === 0) return {};
-    let fileState = {}; // { 'path/to/file': 'content' }
-
-    // Start with the full content of the first version's files
-    versions[0].files.forEach(file => {
-        fileState[file.path] = file.content;
-    });
-
-    // Apply patches sequentially up to the target version
-    for (let i = 1; i <= targetVersionNumber; i++) {
-        if (versions[i] && versions[i].files) {
-            versions[i].files.forEach(file => {
-                if (file.patch) {
-                    const oldContent = fileState[file.path] || "";
-                    const newContent = diff.applyPatch(oldContent, file.patch);
-                    if (newContent !== false) {
-                        fileState[file.path] = newContent;
-                    }
-                } else {
-                    // This is a new file, add it with its full content
-                    fileState[file.path] = file.content;
-                }
-            });
-        }
-    }
-    return fileState;
-};
-
-// COMMIT A NEW VERSION (MULTI-FILE)
-exports.commitNewVersion = async (req, res) => {
+// ADD A COMMENT TO A POST
+exports.addComment = async (req, res) => {
     try {
-        const { files: newFiles, commitMessage } = req.body;
+        const { text, userId } = req.body;
         const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: 'Post not found' });
 
-        const latestVersionNumber = post.versions.length - 1;
-        const oldFileState = reconstructFileState(post.versions, latestVersionNumber);
-        const newVersionFiles = [];
-        
-        newFiles.forEach(newFile => {
-            const oldContent = oldFileState[newFile.path];
-            if (oldContent !== undefined) { // File exists, create a patch
-                if (oldContent !== newFile.content) {
-                    const patch = diff.createPatch(newFile.path, oldContent, newFile.content);
-                    newVersionFiles.push({ path: newFile.path, patch: patch });
-                }
-            } else { // This is a new file, store its full content
-                newVersionFiles.push({ path: newFile.path, content: newFile.content });
-            }
-        });
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
 
-        const newVersion = {
-            commitMessage,
-            versionNumber: post.versions.length,
-            files: newVersionFiles
+        const newComment = {
+            text: text,
+            author: userId
         };
 
-        post.versions.push(newVersion);
+        post.comments.unshift(newComment);
         await post.save();
-        res.status(201).json(post);
+
+        const populatedPost = await Post.findById(req.params.id).populate('comments.author', 'username');
+        res.status(201).json(populatedPost.comments);
+
     } catch (error) {
-        console.error("Error committing new version:", error);
-        res.status(500).json({ error: "Server error while committing." });
+        console.error("Error adding comment:", error);
+        res.status(500).json({ error: "Server error while adding comment." });
     }
 };
 
-// GET A SPECIFIC VERSION OF A POST'S CODE
-exports.getCodeForVersion = async (req, res) => {
+// DELETE A POST
+exports.deletePost = async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
-        const versionNumber = parseInt(req.params.versionNumber, 10);
 
-        if (!post || !post.versions[versionNumber]) {
-            return res.status(404).json({ error: 'Post or version not found' });
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
         }
 
-        const fileState = reconstructFileState(post.versions, versionNumber);
-        // This endpoint will need to be updated to return a specific file's content
-        // For now, let's just return the whole file state for debugging
-        res.status(200).json({ files: fileState });
+        const fileContentIds = post.versions.flatMap(version => 
+            version.files.map(file => file.fileId)
+        );
+
+        if (fileContentIds.length > 0) {
+            await FileContent.deleteMany({ _id: { $in: fileContentIds } });
+        }
+
+        await Post.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({ message: 'Post and associated files deleted successfully.' });
 
     } catch (error) {
-        res.status(500).json({ error: "Server error while fetching version." });
+        console.error("Error deleting post:", error);
+        res.status(500).json({ error: "Server error while deleting post." });
     }
+};
+
+
+// --- VERSIONING FUNCTIONS (PLACEHOLDERS FOR NOW) ---
+
+const reconstructFileState = (versions, targetVersionNumber) => {
+    // This logic will need to be fully implemented for versioning feature
+    return {};
+};
+
+exports.commitNewVersion = async (req, res) => {
+    // This logic will need to be fully implemented for versioning feature
+    res.status(501).json({ message: "File-based versioning not yet implemented." });
+};
+
+exports.getCodeForVersion = async (req, res) => {
+    // This logic will need to be fully implemented for versioning feature
+    res.status(501).json({ message: "File-based version reconstruction not yet implemented." });
 };

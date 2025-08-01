@@ -1,6 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Title, Text, Card, SimpleGrid, Group, Menu, ActionIcon } from '@mantine/core';
+import { IconDotsVertical, IconTrash, IconEye } from '@tabler/icons-react';
+import { LayoutContext } from '../context/LayoutContext';
+import './PostCard.css'; // Make sure you have created this CSS file
+
+const PostCard = ({ post, onDelete }) => {
+    const { collapseSidebar } = useContext(LayoutContext);
+    const navigate = useNavigate();
+    const snippet = post.blogContent.substring(0, 100) + (post.blogContent.length > 100 ? '...' : '');
+
+    const handleViewClick = () => {
+        collapseSidebar();
+        navigate(`/posts/${post._id}`);
+    };
+
+    return (
+        <Card shadow="sm" padding="lg" radius="md" withBorder className="postCard">
+            <Group justify="space-between" mb="xs">
+                {/* Make the title clickable */}
+                <Title order={4} component={Link} to={`/posts/${post._id}`} onClick={collapseSidebar} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {post.title}
+                </Title>
+                {/* Options Menu (the three dots) */}
+                <Menu shadow="md" width={200}>
+                    <Menu.Target>
+                        <ActionIcon variant="subtle" color="gray"><IconDotsVertical /></ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item leftSection={<IconEye size={14} />} onClick={handleViewClick}>
+                            View Project
+                        </Menu.Item>
+                        <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => onDelete(post._id)}>
+                            Delete Project
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Group>
+
+            <Text size="sm" c="dimmed">
+                by {post.author ? post.author.username : 'Unknown'}
+            </Text>
+
+            <Text size="sm" c="dimmed" mt="sm">
+                {snippet}
+            </Text>
+        </Card>
+    );
+};
 
 const AllPosts = () => {
     const [posts, setPosts] = useState([]);
@@ -21,26 +69,38 @@ const AllPosts = () => {
         fetchPosts();
     }, []);
 
+    // Function to handle deleting a post
+    const handleDeletePost = async (postId) => {
+        // Use a simple confirmation dialog
+        if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+            try {
+                await axios.delete(`http://localhost:5000/api/posts/${postId}`);
+                // Update the UI instantly by filtering out the deleted post
+                setPosts(posts.filter(p => p._id !== postId));
+            } catch (error) {
+                console.error('Failed to delete post:', error);
+                alert('Error deleting project.');
+            }
+        }
+    };
+
     if (loading) {
-        return <p>Loading posts...</p>;
+        return <Text>Loading posts...</Text>;
     }
 
     return (
-        <div>
-            <h2>All Posts</h2>
+        <>
+            <Title order={2} mb="xl">All Projects</Title>
             {posts.length === 0 ? (
-                <p>No posts yet. <Link to="/create-post">Be the first!</Link></p>
+                <Text>No posts yet. <Link to="/create-post">Be the first!</Link></Text>
             ) : (
-                posts.map(post => (
-                    <div key={post._id} style={{ border: '1px solid #ccc', margin: '10px', padding: '10px' }}>
-                        <h3>
-                            <Link to={`/posts/${post._id}`}>{post.title}</Link>
-                        </h3>
-                        <p>by {post.author ? post.author.username : 'Unknown'}</p>
-                    </div>
-                ))
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+                    {posts.map(post => (
+                        <PostCard key={post._id} post={post} onDelete={handleDeletePost} />
+                    ))}
+                </SimpleGrid>
             )}
-        </div>
+        </>
     );
 };
 
