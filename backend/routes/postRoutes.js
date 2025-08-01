@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 
-// Import all controller functions
+// Import all controller functions in a single, clean block
 const { 
     createPost, 
     addFileToPost,
@@ -10,6 +10,8 @@ const {
     getPostById,
     commitNewVersion,
     getCodeForVersion,
+    addComment,
+    deletePost
 } = require('../controllers/postController');
 
 // Configure multer for in-memory file storage
@@ -18,22 +20,18 @@ const upload = multer({ storage: storage });
 
 // --- Define All Routes ---
 
-// POST /api/posts - Create a new post (metadata only)
+// POST routes
 router.post('/', createPost);
-
-// POST /api/posts/:id/files - Add a single file to a post's latest version
 router.post('/:id/files', upload.single('content'), addFileToPost);
+router.post('/:id/comments', addComment);
+router.post('/:id/versions', commitNewVersion);
 
-// GET /api/posts - Get a list of all posts
+// GET routes
 router.get('/', getAllPosts);
-
-// GET /api/posts/:id - Get a single post by its ID
 router.get('/:id', getPostById);
-
-// GET /api/posts/:id/versions/:versionNumber - Get the code for a specific version
 router.get('/:id/versions/:versionNumber', getCodeForVersion);
 
-// POST /api/posts/:id/versions - Commit a new version of a post
-router.post('/:id/versions', commitNewVersion);
+// DELETE route
+router.delete('/:id', deletePost);
 
 module.exports = router;

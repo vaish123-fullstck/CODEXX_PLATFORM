@@ -1,0 +1,66 @@
+/* Defines the rotation animation for the glowing border */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The main container for our card */
+.postCard {
+  position: relative;
+  overflow: hidden; /* This is crucial to contain the glowing border */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* The lift effect on hover */
+.postCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* This is the pseudo-element that creates the aurora border */
+.postCard::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  
+  /* The purple-blue gradient */
+  background: conic-gradient(
+    #a855f7, /* Purple */
+    #3b82f6, /* Blue */
+    #ec4899, /* Pink */
+    #a855f7  /* Loop back to Purple */
+  );
+  
+  /* The animation */
+  animation: rotate 4s linear infinite;
+  
+  /* Hidden by default, appears on hover */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.postCard:hover::before {
+  opacity: 1;
+}
+
+/* This pseudo-element creates the dark background of the card,
+   sitting on top of the aurora border to create the "outline" effect. */
+.postCard::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    left: 2px;
+    top: 2px;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    background: var(--mantine-color-dark-6); /* Matches Mantine's dark card color */
+    border-radius: var(--mantine-radius-md);
+}

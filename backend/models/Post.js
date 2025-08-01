@@ -13,11 +13,20 @@ const VersionSchema = new mongoose.Schema({
     files: [FileSchema] 
 }, { timestamps: true });
 
+
+const CommentSchema = new mongoose.Schema({
+    text: { type: String, required: true },
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+}, { timestamps: true });
+
+
 const PostSchema = new mongoose.Schema({
     title: { type: String, required: true },
     blogContent: { type: String, required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     versions: [VersionSchema],
+    comments: [CommentSchema] // ✅ Add the comments array here
 }, { timestamps: true });
+
 
 module.exports = mongoose.model('Post', PostSchema);

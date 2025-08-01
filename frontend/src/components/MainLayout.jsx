@@ -1,12 +1,13 @@
 import React, { useContext } from 'react';
-import { AppShell, Burger, NavLink, Button, Group, Title, Avatar, Box, Text } from '@mantine/core';
+import { AppShell, Burger, NavLink, Button, Group, Title, Avatar, Box, Text, ScrollArea, Tooltip, ActionIcon } from '@mantine/core';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { useDisclosure } from '@mantine/hooks';
 import { AuthContext } from '../context/AuthContext';
+import { LayoutContext } from '../context/LayoutContext'; // Import LayoutContext
+import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 
 export function MainLayout() {
-  const [opened, { toggle }] = useDisclosure();
   const { user, logout } = useContext(AuthContext);
+  const { isSidebarCollapsed, toggleSidebar } = useContext(LayoutContext); // Use the new context
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,12 +18,20 @@ export function MainLayout() {
   return (
     <AppShell
       header={{ height: 60 }}
-      navbar={{ width: 280, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      navbar={{ 
+        width: 280, 
+        breakpoint: 'sm', 
+        collapsed: { mobile: true, desktop: isSidebarCollapsed } // Control collapse from state
+      }}
       padding="md"
     >
       <AppShell.Header style={{ background: '#1e1e1e', borderBottom: '1px solid #333' }}>
         <Group h="100%" px="md">
-          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+          <Tooltip label={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}>
+            <ActionIcon variant="default" onClick={toggleSidebar} size="lg">
+                {isSidebarCollapsed ? <IconLayoutSidebarLeftExpand /> : <IconLayoutSidebarLeftCollapse />}
+            </ActionIcon>
+          </Tooltip>
           <Title order={3}>CodeX</Title>
         </Group>
       </AppShell.Header>
@@ -59,7 +68,12 @@ export function MainLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Outlet /> 
+        {/* ✅ FIX: The ScrollArea is now inside the Box, and the Box has the correct height */}
+        <Box style={{ height: 'calc(100vh - 92px)', overflow: 'hidden' }}>
+            <ScrollArea h="100%" p="md">
+                <Outlet /> 
+            </ScrollArea>
+        </Box>
       </AppShell.Main>
     </AppShell>
   );
