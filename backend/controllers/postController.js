@@ -2,163 +2,97 @@ const Post = require('../models/Post');
 const FileContent = require('../models/FileContent');
 const diff = require('diff');
 
-// CREATE POST (METADATA ONLY)
-exports.createPost = async (req, res) => {
-    try {
-        const { title, blogContent, userId } = req.body;
-        const initialVersion = {
-            commitMessage: 'Initial commit',
-            versionNumber: 0,
-            files: []
-        };
-        const newPost = new Post({
-            title,
-            blogContent,
-            author: userId,
-            versions: [initialVersion]
-        });
-        const savedPost = await newPost.save();
-        res.status(201).json(savedPost); 
-    } catch (error) {
-        console.error("Error creating post:", error);
-        res.status(500).json({ error: "Server error while creating post." });
-    }
-};
+// ... (keep your existing functions like createPost, addFileToPost, etc.)
 
-// ADD A SINGLE FILE TO A POST
-exports.addFileToPost = async (req, res) => {
-    try {
-        const { path } = req.body;
-        const postId = req.params.id;
-        const post = await Post.findById(postId);
+// ✅ REWRITTEN: This helper function can now reconstruct the full state of a project at any version.
+const reconstructFileState = async (versions, targetVersionNumber) => {
+    if (!versions || versions.length === 0) return {};
 
-        if (!req.file) return res.status(400).json({ error: 'No file provided.' });
-        if (!post) return res.status(404).json({ error: 'Post not found' });
-        
-        const fileContent = req.file.buffer.toString('utf-8');
+    let fileState = {}; // { 'path/to/file': 'content' }
 
-        const newFileContent = new FileContent({
-            postId: postId,
-            content: fileContent
-        });
-        const savedFileContent = await newFileContent.save();
-
-        const latestVersion = post.versions[post.versions.length - 1];
-        
-        latestVersion.files.push({
-            path: path,
-            fileId: savedFileContent._id
-        });
-
-        await post.save();
-        res.status(200).json({ message: `File ${path} added successfully.`});
-
-    } catch (error) {
-        console.error("Error adding file to post:", error);
-        res.status(500).json({ error: "Server error while adding file." });
-    }
-};
-
-// GET ALL POSTS
-exports.getAllPosts = async (req, res) => {
-    try {
-        const posts = await Post.find().populate('author', 'username').sort({ createdAt: -1 });
-        res.status(200).json(posts);
-    } catch (error) {
-        console.error("Error fetching posts:", error);
-        res.status(500).json({ error: "Server error while fetching posts." });
-    }
-};
-
-// GET A SINGLE POST BY ID (WITH FILE CONTENT POPULATED)
-exports.getPostById = async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id)
-            .populate('author', 'username')
-            .populate('comments.author', 'username') // Also populate comment authors
-            .populate({
-                path: 'versions.files.fileId',
-                model: 'FileContent'
-            });
-
-        if (!post) {
-            return res.status(404).json({ error: 'Post not found' });
+    // Start with the full content of the first version's files
+    const firstVersion = versions[0];
+    for (const fileRef of firstVersion.files) {
+        const fileDoc = await FileContent.findById(fileRef.fileId);
+        if (fileDoc) {
+            fileState[fileRef.path] = fileDoc.content;
         }
-        res.status(200).json(post);
-    } catch (error) {
-        console.error("Error fetching single post:", error);
-        res.status(500).json({ error: "Server error while fetching post." });
     }
-};
 
-// ADD A COMMENT TO A POST
-exports.addComment = async (req, res) => {
-    try {
-        const { text, userId } = req.body;
-        const post = await Post.findById(req.params.id);
-
-        if (!post) {
-            return res.status(404).json({ error: 'Post not found' });
+    // Apply patches sequentially up to the target version
+    for (let i = 1; i <= targetVersionNumber; i++) {
+        const version = versions[i];
+        if (version && version.files) {
+            for (const fileRef of version.files) {
+                const fileDoc = await FileContent.findById(fileRef.fileId);
+                if (fileDoc) {
+                    if (fileDoc.patch) {
+                        const oldContent = fileState[fileRef.path] || "";
+                        const newContent = diff.applyPatch(oldContent, fileDoc.patch);
+                        if (newContent !== false) {
+                            fileState[fileRef.path] = newContent;
+                        }
+                    } else {
+                        // This is a new file added in a later version
+                        fileState[fileRef.path] = fileDoc.content;
+                    }
+                }
+            }
         }
-
-        const newComment = {
-            text: text,
-            author: userId
-        };
-
-        post.comments.unshift(newComment);
-        await post.save();
-
-        const populatedPost = await Post.findById(req.params.id).populate('comments.author', 'username');
-        res.status(201).json(populatedPost.comments);
-
-    } catch (error) {
-        console.error("Error adding comment:", error);
-        res.status(500).json({ error: "Server error while adding comment." });
     }
+    return fileState;
 };
 
-// DELETE A POST
-exports.deletePost = async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-
-        if (!post) {
-            return res.status(404).json({ error: 'Post not found' });
-        }
-
-        const fileContentIds = post.versions.flatMap(version => 
-            version.files.map(file => file.fileId)
-        );
-
-        if (fileContentIds.length > 0) {
-            await FileContent.deleteMany({ _id: { $in: fileContentIds } });
-        }
-
-        await Post.findByIdAndDelete(req.params.id);
-
-        res.status(200).json({ message: 'Post and associated files deleted successfully.' });
-
-    } catch (error) {
-        console.error("Error deleting post:", error);
-        res.status(500).json({ error: "Server error while deleting post." });
-    }
-};
-
-
-// --- VERSIONING FUNCTIONS (PLACEHOLDERS FOR NOW) ---
-
-const reconstructFileState = (versions, targetVersionNumber) => {
-    // This logic will need to be fully implemented for versioning feature
-    return {};
-};
-
+// ✅ REWRITTEN: This is the core logic for committing a new version.
 exports.commitNewVersion = async (req, res) => {
-    // This logic will need to be fully implemented for versioning feature
-    res.status(501).json({ message: "File-based versioning not yet implemented." });
+    try {
+        // The frontend will send an array of all files with their new content
+        const { files: newFileStates, commitMessage } = req.body;
+        const post = await Post.findById(req.params.id);
+
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const latestVersionNumber = post.versions.length - 1;
+        const oldFileState = await reconstructFileState(post.versions, latestVersionNumber);
+
+        const newVersionFiles = [];
+        
+        // Compare the old file state with the new files to create patches
+        for (const newFile of newFileStates) {
+            const oldContent = oldFileState[newFile.path];
+            
+            if (oldContent !== undefined) { // File already exists
+                if (oldContent !== newFile.content) { // Content has changed, create a patch
+                    const patch = diff.createPatch(newFile.path, oldContent, newFile.content);
+                    const newPatchContent = new FileContent({ postId: post._id, patch: patch });
+                    const savedPatch = await newPatchContent.save();
+                    newVersionFiles.push({ path: newFile.path, fileId: savedPatch._id });
+                }
+            } else { // This is a new file, store its full content
+                const newFullContent = new FileContent({ postId: post._id, content: newFile.content });
+                const savedContent = await newFullContent.save();
+                newVersionFiles.push({ path: newFile.path, fileId: savedContent._id });
+            }
+        }
+
+        if (newVersionFiles.length === 0) {
+            return res.status(200).json({ message: "No changes to commit." });
+        }
+
+        const newVersion = {
+            commitMessage,
+            versionNumber: post.versions.length,
+            files: newVersionFiles
+        };
+
+        post.versions.push(newVersion);
+        await post.save();
+        res.status(201).json(post);
+
+    } catch (error) {
+        console.error("Error committing new version:", error);
+        res.status(500).json({ error: "Server error while committing." });
+    }
 };
 
-exports.getCodeForVersion = async (req, res) => {
-    // This logic will need to be fully implemented for versioning feature
-    res.status(501).json({ message: "File-based version reconstruction not yet implemented." });
-};
+// ... (keep your other functions like getCodeForVersion, which will need updating later)

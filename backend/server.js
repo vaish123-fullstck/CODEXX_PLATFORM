@@ -12,8 +12,8 @@ const errorHandler = require("./middleware/errorHandler");
 // Import all your route files
 const authRoutes = require("./routes/authRoutes");
 const fileRoutes = require("./routes/fileRoutes");
-
-const postRoutes = require("./routes/postRoutes"); // The new routes for posts
+const postRoutes = require("./routes/postRoutes");
+const userRoutes = require("./routes/userRoutes"); // ✅ Import the new user routes
 
 // Load environment variables and connect to the database
 dotenv.config();
@@ -47,17 +47,16 @@ app.use(cors({
 // All routes are now neatly organized and imported
 app.use("/api/auth", authRoutes);
 app.use("/api/files", fileRoutes);
-
-app.use("/api/posts", postRoutes); // Using the new post routes
+app.use("/api/posts", postRoutes);
+app.use("/api/users", userRoutes); // ✅ Use the new user routes
 
 // --- Static File Serving ---
-// It's good practice to have these defined
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const REPO_DIR = path.join(__dirname, "repositories");
 app.use("/uploads", express.static(UPLOADS_DIR));
 app.use("/repositories", express.static(REPO_DIR));
 
-// NOTE: The Electron-specific routes can also be moved to their own controller and route files!
+// Electron-specific routes
 app.get("/is-electron-running", (req, res) => {
     res.json({ status: "success", message: "Electron app is running!" });
 });
@@ -67,7 +66,6 @@ app.get("/api/electron-handshake", (req, res) => {
 
 
 // --- Global Error Handler ---
-// This should be the last piece of middleware
 app.use(errorHandler);
 
 
