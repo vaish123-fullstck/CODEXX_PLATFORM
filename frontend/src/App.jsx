@@ -9,10 +9,10 @@ import LandingPage from "./components/LandingPage";
 import LoginSignup from "./components/LoginSignup";
 import Dashboard from "./pages/Dashboard";
 import AllPosts from "./pages/AllPosts";
-import ProjectOverview from "./pages/ProjectOverview"; // ✅ Import the new overview page
-import EditorPage from "./pages/PostPage"; // This is now the dedicated editor page
+import ProjectOverview from "./pages/ProjectOverview";
+import EditorPage from "./pages/PostPage";
 import CreatePost from "./pages/CreatePost";
-
+import Favorites from "./pages/Favorites"; // ✅ Import the new Favorites page
 
 // This component protects routes that require a user to be logged in
 const ProtectedRoute = ({ children }) => {
@@ -43,12 +43,10 @@ const App = () => {
                         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/posts" element={<AllPosts />} />
-                            
-                            {/* ✅ UPDATED ROUTES for the new workflow */}
                             <Route path="/posts/:id" element={<ProjectOverview />} />
                             <Route path="/posts/:id/editor" element={<EditorPage />} />
-
                             <Route path="/create-post" element={<CreatePost />} />
+                            <Route path="/favorites" element={<Favorites />} /> {/* ✅ Add the new route */}
                         </Route>
                         
                         {/* Default/fallback route */}

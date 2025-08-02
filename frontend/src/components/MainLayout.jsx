@@ -2,12 +2,12 @@ import React, { useContext } from 'react';
 import { AppShell, Burger, NavLink, Button, Group, Title, Avatar, Box, Text, ScrollArea, Tooltip, ActionIcon } from '@mantine/core';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { LayoutContext } from '../context/LayoutContext'; // Import LayoutContext
+import { LayoutContext } from '../context/LayoutContext';
 import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 
 export function MainLayout() {
   const { user, logout } = useContext(AuthContext);
-  const { isSidebarCollapsed, toggleSidebar } = useContext(LayoutContext); // Use the new context
+  const { isSidebarCollapsed, toggleSidebar } = useContext(LayoutContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -21,7 +21,7 @@ export function MainLayout() {
       navbar={{ 
         width: 280, 
         breakpoint: 'sm', 
-        collapsed: { mobile: true, desktop: isSidebarCollapsed } // Control collapse from state
+        collapsed: { mobile: true, desktop: isSidebarCollapsed }
       }}
       padding="md"
     >
@@ -39,8 +39,9 @@ export function MainLayout() {
       <AppShell.Navbar p="md" style={{ background: '#1e1e1e', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1 }}>
           <NavLink component={Link} to="/dashboard" label="Home" style={{ borderRadius: '4px' }} />
-          <NavLink component={Link} to="/posts" label="Projects" style={{ borderRadius: '4px' }} />
-          <NavLink component={Link} to="/favorites" label="Favorites" disabled style={{ borderRadius: '4px' }} />
+          <NavLink component={Link} to="/posts" label="All Projects" style={{ borderRadius: '4px' }} />
+          {/* ✅ The Favorites link is now enabled */}
+          <NavLink component={Link} to="/favorites" label="Favorites" style={{ borderRadius: '4px' }} />
           <Button
               component={Link}
               to="/create-post"
@@ -56,7 +57,7 @@ export function MainLayout() {
         {user && (
           <Box pt="md" mt="auto" style={{ borderTop: '1px solid #333' }}>
              <Group>
-                <Avatar color="violet" radius="xl">{user.username.charAt(0)}</Avatar>
+                <Avatar color="violet" radius="xl">{user.username.charAt(0).toUpperCase()}</Avatar>
                 <div style={{ flex: 1 }}>
                     <Text size="sm" fw={500}>{user.username}</Text>
                     <Text c="dimmed" size="xs">{user.email}</Text>
@@ -68,12 +69,11 @@ export function MainLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {/* ✅ FIX: The ScrollArea is now inside the Box, and the Box has the correct height */}
-        <Box style={{ height: 'calc(100vh - 92px)', overflow: 'hidden' }}>
-            <ScrollArea h="100%" p="md">
+        <ScrollArea style={{ height: 'calc(100vh - 60px)' }}>
+            <Box p="md">
                 <Outlet /> 
-            </ScrollArea>
-        </Box>
+            </Box>
+        </ScrollArea>
       </AppShell.Main>
     </AppShell>
   );

@@ -25,7 +25,8 @@ const PostSchema = new mongoose.Schema({
     blogContent: { type: String, required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     versions: [VersionSchema],
-    comments: [CommentSchema] // ✅ Add the comments array here
+    comments: [CommentSchema], // Comma was missing here
+    thumbnailCodeSnippet: { type: String, default: '// No preview available' }
 }, { timestamps: true });
 
 
