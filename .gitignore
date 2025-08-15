@@ -1,2 +1,4 @@
 node_modules/\n.env\nuploads/\nrepositories/\.DS_Store\n*log
 node_modules
+*.env
+
